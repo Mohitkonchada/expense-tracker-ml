@@ -5,35 +5,41 @@ import sqlite3
 import os
 
 app = Flask(__name__)
-app.secret_key = "secret-key"
+app.secret_key = "secret_key_123"
 
 # ---------------- LOGIN MANAGER ----------------
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
-# ---------------- DATABASE ----------------
+DB_NAME = "expense.db"
+
+# ---------------- DATABASE SETUP ----------------
 def get_db():
-    return sqlite3.connect("expense.db")
+    return sqlite3.connect(DB_NAME)
 
 def init_db():
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
-        )
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+    )
     """)
+
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS expenses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            amount REAL,
-            category TEXT
-        )
+    CREATE TABLE IF NOT EXISTS expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        amount REAL,
+        category TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
     """)
+
     conn.commit()
     conn.close()
 
@@ -50,10 +56,10 @@ def load_user(user_id):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
-    row = cur.fetchone()
+    user = cur.fetchone()
     conn.close()
-    if row:
-        return User(row[0], row[1])
+    if user:
+        return User(user[0], user[1])
     return None
 
 # ---------------- ROUTES ----------------
@@ -66,6 +72,7 @@ def index():
     if request.method == "POST":
         amount = request.form["amount"]
         category = request.form["category"]
+
         cur.execute(
             "INSERT INTO expenses (user_id, amount, category) VALUES (?, ?, ?)",
             (current_user.id, amount, category)
@@ -90,12 +97,14 @@ def login():
         conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT id, password FROM users WHERE username = ?", (username,))
-        row = cur.fetchone()
+        user = cur.fetchone()
         conn.close()
 
-        if row and check_password_hash(row[1], password):
-            login_user(User(row[0], username))
+        if user and check_password_hash(user[1], password):
+            login_user(User(user[0], username))
             return redirect(url_for("index"))
+
+        return "Invalid credentials"
 
     return render_template("login.html")
 
@@ -126,5 +135,6 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
+# ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
