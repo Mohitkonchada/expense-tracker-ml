@@ -1,193 +1,86 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Expense Tracker</title>
     <style>
         body {
-            background-color: #007BFF;
-            color: white;
-            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background-color: #1e90ff; /* blue background */
             display: flex;
             justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            margin: 0;
-            padding-top: 20px;
+            align-items: center;
+            font-family: Arial, sans-serif;
         }
+
         .container {
-            text-align: center;
-            background-color: #0056b3;
+            background-color: white;
             padding: 30px;
+            width: 350px;
             border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-            width: 450px;
-        }
-        input, select, button {
-            padding: 10px;
-            margin: 10px 0;
-            width: 90%;
-            border-radius: 5px;
-            border: none;
-        }
-        button {
-            background-color: #FFC107;
-            color: black;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:hover {
-            background-color: #e0a800;
-        }
-        label {
-            font-weight: bold;
-        }
-        p, h3 {
-            margin: 15px 0;
-        }
-        table {
-            width: 100%;
-            margin: auto;
-            border-collapse: collapse;
-            color: white;
-        }
-        table, th, td {
-            border: 1px solid white;
-        }
-        th, td {
-            padding: 10px;
             text-align: center;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
         }
-        table tr:nth-child(even) {
-            background-color: rgba(255,255,255,0.1);
+
+        h2 {
+            margin-bottom: 20px;
         }
-        canvas {
-            margin-top: 20px;
+
+        input {
+            width: 90%;
+            padding: 8px;
+            margin: 8px 0;
+        }
+
+        button {
+            padding: 8px 15px;
+            margin-top: 10px;
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 5px 0;
+        }
+
+        a {
+            display: block;
+            margin-top: 15px;
+            color: red;
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Expense Tracker</h2>
 
-        <!-- Expense Input Form -->
-        <form method="post">
-            <label>Date:</label><br>
-            <input type="date" name="date" required><br>
+<div class="container">
+    <h2>Welcome {{ current_user.username }}</h2>
 
-            <label>Amount:</label><br>
-            <input type="number" name="amount" min="0" required><br>
+    <form method="post">
+        <input type="number" step="0.01" name="amount" placeholder="Enter amount" required>
+        <input type="text" name="category" placeholder="Enter category" required>
+        <button type="submit">Add Expense</button>
+    </form>
 
-            <label>Category:</label><br>
-            <select name="category" required>
-                <option value="">Select Category</option>
-                <option value="Food">Food</option>
-                <option value="Travel">Travel</option>
-                <option value="Bills">Bills</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Other">Other</option>
-            </select><br>
+    <h3>Your Expenses</h3>
+    <ul>
+        {% for e in expenses %}
+            <li>₹ {{ e[0] }} - {{ e[1] }}</li>
+        {% endfor %}
+    </ul>
 
-            <button type="submit">Add Expense</button>
-        </form>
+    <a href="/logout">Logout</a>
+</div>
 
-        <!-- Message after adding expense -->
-        {% if message %}
-            <p>{{ message }}</p>
-        {% endif %}
-
-        <!-- Monthly total -->
-        {% if monthly_total %}
-            <h3>Total Expense This Month: ₹ {{ monthly_total }}</h3>
-        {% endif %}
-
-        <!-- Display all expenses -->
-        {% if expenses %}
-            <h3>All Expenses</h3>
-            <table>
-                <tr>
-                    <th>Date</th>
-                    <th>Amount</th>
-                    <th>Category</th>
-                </tr>
-                {% for expense in expenses %}
-                <tr {% if loop.last %} style="background-color: yellow; color:black;" {% endif %}>
-                    <td>{{ expense['Date'] }}</td>
-                    <td>{{ expense['Amount'] }}</td>
-                    <td>{{ expense['Category'] }}</td>
-                </tr>
-                {% endfor %}
-            </table>
-        {% endif %}
-
-        <!-- ML Prediction -->
-        {% if prediction %}
-            <h3>Predicted Expense for Next Month: ₹ {{ prediction }}</h3>
-        {% endif %}
-
-        <!-- Expense Chart -->
-       {% if expenses %}
-<canvas id="expenseChart" width="400" height="200"></canvas>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-    var ctx = document.getElementById('expenseChart').getContext('2d');
-
-    var expenseChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [
-                {% for expense in expenses %}
-                    "{{ expense['Date'] }}"{% if not loop.last %}, {% endif %}
-                {% endfor %}
-            ],
-            datasets: [{
-                label: 'Expense Amount',
-                data: [
-                    {% for expense in expenses %}
-                        {{ expense['Amount'] }}{% if not loop.last %}, {% endif %}
-                    {% endfor %}
-                ],
-                borderColor: '#00FFCC',
-                backgroundColor: 'transparent',
-                pointBackgroundColor: '#FFD700',
-                pointBorderColor: '#FFD700',
-                tension: 0.3
-            }]
-        },
-        options: {
-            plugins: {
-                legend: {
-                    labels: {
-                        color: 'white'
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    ticks: { color: 'white' },
-                    grid: { color: 'rgba(255,255,255,0.2)' },
-                    title: {
-                        display: true,
-                        text: 'Date',
-                        color: 'white'
-                    }
-                },
-                y: {
-                    ticks: { color: 'white' },
-                    grid: { color: 'rgba(255,255,255,0.2)' },
-                    title: {
-                        display: true,
-                        text: 'Amount (₹)',
-                        color: 'white'
-                    }
-                }
-            }
-        }
-    });
-</script>
-{% endif %}
-
-
-    </div>
 </body>
 </html>
