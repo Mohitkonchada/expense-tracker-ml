@@ -1,57 +1,130 @@
-from flask import Flask, render_template, request
-import csv
+from flask import Flask, render_template, request, redirect, url_for
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+import sqlite3
 import os
-import pandas as pd
-from sklearn.linear_model import LinearRegression
-import datetime
 
 app = Flask(__name__)
+app.secret_key = "secret-key"
 
-@app.route('/', methods=['GET', 'POST'])
-def home():
-    message = ""
-    prediction = None
-    monthly_total = 0
-    expenses_list = []
+# ---------------- LOGIN MANAGER ----------------
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
 
-    # Handle form submission
-    if request.method == 'POST':
-        date = request.form.get('date')
-        amount = request.form.get('amount')
-        category = request.form.get('category')
+# ---------------- DATABASE ----------------
+def get_db():
+    return sqlite3.connect("expense.db")
 
-        # Save to CSV
-        file_exists = os.path.isfile('expenses.csv')
-        with open('expenses.csv', mode='a', newline='') as file:
-            writer = csv.writer(file)
-            if not file_exists:
-                writer.writerow(['Date', 'Amount', 'Category'])
-            writer.writerow([date, amount, category])
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS expenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            amount REAL,
+            category TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-        message = f"Expense Added: {date}, {amount}, {category}"
+init_db()
 
-    # Read CSV if exists
-    if os.path.isfile('expenses.csv'):
-        df = pd.read_csv('expenses.csv')
-        df['Date'] = pd.to_datetime(df['Date'])
-        expenses_list = df.to_dict('records')
+# ---------------- USER CLASS ----------------
+class User(UserMixin):
+    def __init__(self, id, username):
+        self.id = id
+        self.username = username
 
-        # Calculate monthly total
-        now = datetime.datetime.now()
-        monthly_total = df[(df['Date'].dt.month == now.month) & (df['Date'].dt.year == now.year)]['Amount'].astype(float).sum()
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return User(row[0], row[1])
+    return None
 
-        # ML Prediction
-        df['DayNumber'] = df['Date'].map(lambda x: x.toordinal())
-        X = df[['DayNumber']]
-        y = df['Amount'].astype(float)
-        model = LinearRegression()
-        model.fit(X, y)
-        last_date = df['Date'].max()
-        next_month_date = last_date + pd.DateOffset(months=1)
-        next_day_number = next_month_date.toordinal()
-        prediction = round(model.predict([[next_day_number]])[0], 2)
+# ---------------- ROUTES ----------------
+@app.route("/", methods=["GET", "POST"])
+@login_required
+def index():
+    conn = get_db()
+    cur = conn.cursor()
 
-    return render_template('index.html', message=message, prediction=prediction, expenses=expenses_list, monthly_total=monthly_total)
+    if request.method == "POST":
+        amount = request.form["amount"]
+        category = request.form["category"]
+        cur.execute(
+            "INSERT INTO expenses (user_id, amount, category) VALUES (?, ?, ?)",
+            (current_user.id, amount, category)
+        )
+        conn.commit()
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000)
+    cur.execute(
+        "SELECT amount, category FROM expenses WHERE user_id = ?",
+        (current_user.id,)
+    )
+    expenses = cur.fetchall()
+    conn.close()
+
+    return render_template("index.html", expenses=expenses)
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id, password FROM users WHERE username = ?", (username,))
+        row = cur.fetchone()
+        conn.close()
+
+        if row and check_password_hash(row[1], password):
+            login_user(User(row[0], username))
+            return redirect(url_for("index"))
+
+    return render_template("login.html")
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = generate_password_hash(request.form["password"])
+
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)",
+                (username, password)
+            )
+            conn.commit()
+            conn.close()
+            return redirect(url_for("login"))
+        except:
+            return "Username already exists"
+
+    return render_template("signup.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
+
+if __name__ == "__main__":
+    app.run(debug=True)
