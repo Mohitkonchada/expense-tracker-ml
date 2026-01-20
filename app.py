@@ -1,92 +1,47 @@
 from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
-import os
 
 app = Flask(__name__)
-app.secret_key = "secret_key_123"
+app.config['SECRET_KEY'] = 'secret123'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 
-# ---------------- LOGIN MANAGER ----------------
+db = SQLAlchemy(app)
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
-DB_NAME = "expense.db"
 
-# ---------------- DATABASE SETUP ----------------
-def get_db():
-    return sqlite3.connect(DB_NAME)
+# ------------------ MODEL ------------------
 
-def init_db():
-    conn = get_db()
-    cur = conn.cursor()
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(100), nullable=False)
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS expenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        amount REAL,
-        category TEXT,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )
-    """)
-
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# ---------------- USER CLASS ----------------
-class User(UserMixin):
-    def __init__(self, id, username):
-        self.id = id
-        self.username = username
 
 @login_manager.user_loader
 def load_user(user_id):
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
-    user = cur.fetchone()
-    conn.close()
-    if user:
-        return User(user[0], user[1])
-    return None
+    return User.query.get(int(user_id))
 
-# ---------------- ROUTES ----------------
-@app.route("/", methods=["GET", "POST"])
-@login_required
-def index():
-    conn = get_db()
-    cur = conn.cursor()
 
+# ------------------ ROUTES ------------------
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
     if request.method == "POST":
-        amount = request.form["amount"]
-        category = request.form["category"]
+        username = request.form["username"]
+        password = request.form["password"]
 
-        cur.execute(
-            "INSERT INTO expenses (user_id, amount, category) VALUES (?, ?, ?)",
-            (current_user.id, amount, category)
-        )
-        conn.commit()
+        user = User(username=username, password=password)
+        db.session.add(user)
+        db.session.commit()
 
-    cur.execute(
-        "SELECT amount, category FROM expenses WHERE user_id = ?",
-        (current_user.id,)
-    )
-    expenses = cur.fetchall()
-    conn.close()
+        return redirect(url_for("login"))
 
-    return render_template("index.html", expenses=expenses)
+    return render_template("signup.html")
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -94,40 +49,20 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT id, password FROM users WHERE username = ?", (username,))
-        user = cur.fetchone()
-        conn.close()
-
-        if user and check_password_hash(user[1], password):
-            login_user(User(user[0], username))
-            return redirect(url_for("index"))
-
-        return "Invalid credentials"
+        user = User.query.filter_by(username=username, password=password).first()
+        if user:
+            login_user(user)
+            return redirect(url_for("dashboard"))
 
     return render_template("login.html")
 
-@app.route("/signup", methods=["GET", "POST"])
-def signup():
-    if request.method == "POST":
-        username = request.form["username"]
-        password = generate_password_hash(request.form["password"])
 
-        try:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute(
-                "INSERT INTO users (username, password) VALUES (?, ?)",
-                (username, password)
-            )
-            conn.commit()
-            conn.close()
-            return redirect(url_for("login"))
-        except:
-            return "Username already exists"
+@app.route("/")
+@login_required
+def dashboard():
+    
+    return render_template("index.html", user=current_user)
 
-    return render_template("signup.html")
 
 @app.route("/logout")
 @login_required
@@ -135,6 +70,10 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
-# ---------------- RUN APP ----------------
+
+# ------------------ RUN ------------------
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    with app.app_context():
+        db.create_all()
+    app.run(debug=False, use_reloader=False)

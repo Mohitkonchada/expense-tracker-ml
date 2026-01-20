@@ -1,59 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Signup</title>
+    <meta charset="UTF-8">
+    <title>Signup | Expense Tracker</title>
     <style>
         body {
-            height: 100vh;
             margin: 0;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #1e90ff;
+            background: linear-gradient(135deg, #1e90ff, #00bfff);
             font-family: Arial, sans-serif;
         }
 
-        .box {
+        .card {
             background: white;
+            width: 320px;
             padding: 30px;
-            width: 300px;
-            border-radius: 10px;
+            border-radius: 12px;
             text-align: center;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
         }
 
         input {
-            width: 90%;
-            padding: 8px;
+            width: 100%;
+            padding: 10px;
             margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
         }
 
         button {
-            padding: 8px 15px;
-            background: #1e90ff;
+            width: 100%;
+            padding: 10px;
+            margin-top: 15px;
+            background-color: #1e90ff;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
+            font-size: 15px;
             cursor: pointer;
         }
 
-        a {
-            display: block;
+        button:hover {
+            background-color: #187bcd;
+        }
+
+        p {
             margin-top: 15px;
+            font-size: 14px;
+        }
+
+        a {
+            color: #1e90ff;
             text-decoration: none;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h2>Signup</h2>
-    <form method="post">
-        <input name="username" placeholder="Username" required>
-        <input name="password" type="password" placeholder="Password" required>
+<div class="card">
+    <h2>Create Account</h2>
+
+    <form method="POST">
+        <input type="text" name="username" placeholder="Choose Username" required>
+        <input type="password" name="password" placeholder="Choose Password" required>
         <button type="submit">Signup</button>
     </form>
-    <a href="/login">Already have an account?</a>
+
+    <p>Already have an account?<br>
+        <a href="/login">Login here</a>
+    </p>
 </div>
 
 </body>
