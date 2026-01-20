@@ -60,7 +60,13 @@ def login():
 @app.route("/")
 @login_required
 def dashboard():
-    
+    if request.method == "POST":
+        amount = request.form.get("amount")
+        category = request.form.get("category")
+
+        # temporary check (safe)
+        print("Expense added:", amount, category)
+
     return render_template("index.html", user=current_user)
 
 
