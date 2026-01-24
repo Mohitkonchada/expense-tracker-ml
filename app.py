@@ -1,10 +1,18 @@
 from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    login_user,
+    login_required,
+    logout_user,
+    current_user,
+)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret123'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config["SECRET_KEY"] = "secret123"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
@@ -57,17 +65,26 @@ def login():
     return render_template("login.html")
 
 
+# ---------- DASHBOARD (GET ONLY) ----------
+
 @app.route("/")
 @login_required
 def dashboard():
-    if request.method == "POST":
-        amount = request.form.get("amount")
-        category = request.form.get("category")
-
-        # temporary check (safe)
-        print("Expense added:", amount, category)
-
     return render_template("index.html", user=current_user)
+
+
+# ---------- ADD EXPENSE (POST ONLY) ----------
+
+@app.route("/add-expense", methods=["POST"])
+@login_required
+def add_expense():
+    amount = request.form.get("amount")
+    category = request.form.get("category")
+
+    # Temporary debug (later we store in DB)
+    print("Expense added:", amount, category)
+
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/logout")
