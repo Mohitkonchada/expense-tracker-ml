@@ -1,47 +1,31 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Expense Tracker</title>
-    <style>
-        body {
-            background-color: #1e90ff;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: Arial;
-        }
-        .box {
-            background: white;
-            padding: 30px;
-            width: 350px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        input, button {
-            width: 90%;
-            padding: 8px;
-            margin: 8px 0;
-        }
-    </style>
-</head>
-<body>
-<div class="box">
-    <h2>Welcome {{ current_user.username }}</h2>
+<h2>Welcome {{ user.username }}</h2>
 
-   <form method="POST" action="/add-expense">
+<form method="POST" action="/add-expense">
     <input type="number" name="amount" placeholder="Amount" required>
     <input type="text" name="category" placeholder="Category" required>
     <button type="submit">Add Expense</button>
 </form>
 
-    <ul>
-        {% for e in expenses %}
-            <li>₹ {{ e[0] }} - {{ e[1] }}</li>
-        {% endfor %}
-    </ul>
+<hr>
 
-    <a href="/logout">Logout</a>
-</div>
-</body>
-</html>
+<h3>Your Expenses</h3>
+
+{% if expenses %}
+<table border="1" cellpadding="8">
+    <tr>
+        <th>Amount</th>
+        <th>Category</th>
+    </tr>
+    {% for expense in expenses %}
+    <tr>
+        <td>{{ expense.amount }}</td>
+        <td>{{ expense.category }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No expenses added yet.</p>
+{% endif %}
+
+<br>
+<a href="/logout">Logout</a>

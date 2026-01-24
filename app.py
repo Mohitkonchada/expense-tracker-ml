@@ -21,12 +21,20 @@ login_manager.init_app(app)
 login_manager.login_view = "login"
 
 
-# ------------------ MODEL ------------------
+# ------------------ MODELS ------------------
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
+
+
+# ✅ NEW TABLE
+class Expense(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    amount = db.Column(db.Float, nullable=False)
+    category = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
 
 @login_manager.user_loader
@@ -65,15 +73,17 @@ def login():
     return render_template("login.html")
 
 
-# ---------- DASHBOARD (GET ONLY) ----------
+# ---------- DASHBOARD ----------
 
 @app.route("/")
 @login_required
 def dashboard():
-    return render_template("index.html", user=current_user)
+    # ✅ Fetch all expenses of logged-in user
+    expenses = Expense.query.filter_by(user_id=current_user.id).all()
+    return render_template("index.html", user=current_user, expenses=expenses)
 
 
-# ---------- ADD EXPENSE (POST ONLY) ----------
+# ---------- ADD EXPENSE ----------
 
 @app.route("/add-expense", methods=["POST"])
 @login_required
@@ -81,8 +91,14 @@ def add_expense():
     amount = request.form.get("amount")
     category = request.form.get("category")
 
-    # Temporary debug (later we store in DB)
-    print("Expense added:", amount, category)
+    new_expense = Expense(
+        amount=amount,
+        category=category,
+        user_id=current_user.id,
+    )
+
+    db.session.add(new_expense)
+    db.session.commit()
 
     return redirect(url_for("dashboard"))
 
