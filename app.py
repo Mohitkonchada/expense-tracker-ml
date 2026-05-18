@@ -3,6 +3,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import sqlite3
+import os
 
 app = Flask(__name__)
 app.secret_key = "secret-key-change-later"
@@ -13,12 +14,15 @@ login_manager.init_app(app)
 login_manager.login_view = "login"
 
 # ---------- DATABASE ----------
-DB_NAME = "expense.db"
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DB_NAME = os.path.join(BASE_DIR, "expense.db")
 
 def get_db():
     return sqlite3.connect(DB_NAME)
 
 def init_db():
+
     conn = get_db()
     cur = conn.cursor()
 
@@ -49,12 +53,14 @@ init_db()
 
 # ---------- USER CLASS ----------
 class User(UserMixin):
+
     def __init__(self, id, username):
         self.id = id
         self.username = username
 
 @login_manager.user_loader
 def load_user(user_id):
+
     conn = get_db()
     cur = conn.cursor()
 
@@ -64,6 +70,7 @@ def load_user(user_id):
     )
 
     row = cur.fetchone()
+
     conn.close()
 
     if row:
@@ -105,6 +112,7 @@ def index():
         SELECT amount, category, date
         FROM expenses
         WHERE user_id = ?
+        ORDER BY id DESC
         """,
         (current_user.id,)
     )
@@ -145,6 +153,9 @@ def login():
 
             return redirect(url_for("index"))
 
+        else:
+            return "Invalid Username or Password"
+
     return render_template("login.html")
 
 # ---------- SIGNUP ----------
@@ -160,6 +171,7 @@ def signup():
         )
 
         try:
+
             conn = get_db()
             cur = conn.cursor()
 
